@@ -82,7 +82,9 @@ namespace CPPK.NET
         {
             List<string> tempNo = new List<string>();
             int i = 0;
-            Regex regex = new Regex(@"^\d+.", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            Regex regex =
+                new Regex(@"^\d+.",
+                    RegexOptions.IgnoreCase | RegexOptions.Multiline);
             foreach (string row in Data.Split("\n"))
             {
                 if (regex.IsMatch(row))
@@ -98,7 +100,11 @@ namespace CPPK.NET
                                 question
                                     .AnswerNo
                                     .Add(i > 1
-                                        ? QuestionOptionObj.IncorrectTag + "%" + 100 / i + "%[moodle]" + answer.Substring(1)
+                                        ? QuestionOptionObj.IncorrectTag +
+                                        "%" +
+                                        100 / i +
+                                        "%[moodle]" +
+                                        answer.Substring(1)
                                         : answer);
                             else
                                 question.AnswerNo.Add(answer);
@@ -107,146 +113,131 @@ namespace CPPK.NET
                         tempNo = new List<string>();
                         i = 0;
                     }
-                    tempNo
-                        .Add(row
-                            .Substring(regex
-                                .Match(row)
-                                .Value
-                                .Length));
+                    tempNo.Add(row.Substring(regex.Match(row).Value.Length));
                 }
                 foreach (string incorrectTag in QuestionOptionObj.IncorrectTagNo
                 )
                 {
                     if (row.StartsWith(incorrectTag))
-                        tempNo.Add(QuestionOptionObj.IncorrectTag + row.Substring(1));
+                        tempNo
+                            .Add(QuestionOptionObj.IncorrectTag +
+                            row.Substring(1));
                 }
                 foreach (string correctTag in QuestionOptionObj.CorrectTagNo)
                 {
                     if (row.StartsWith(correctTag))
                     {
-                        tempNo.Add(QuestionOptionObj.CorrectTag + row.Substring(1));
+                        tempNo
+                            .Add(QuestionOptionObj.CorrectTag +
+                            row.Substring(1));
                         i++;
                     }
                 }
             }
         }
 
-        private void prepareRawDataToQuestion()
+        private void prepareRawDataToQuestion(Boolean isMoodle = false)
         {
             if (Data.Split("\n")[0].Split("\t").Length < 2)
             {
                 parseDocToQuestion();
                 return;
             }
-            string temp = "";
-            List<string> tempNo = new List<string>();
-            foreach (string row in Data.Split("\t"))
+            List<string> rowNo = new List<string>();
+            string[] _ = Data.Split("\n");
+            Regex regexNewQuestion = new Regex(@"(?:\.|\d)\t");
+            foreach (string row in _)
             {
                 if (row.Length > 1)
                 {
-                    List<string> elementNo = new List<string>();
-                    elementNo.AddRange(row.Split("\n"));
-                    if (elementNo.ToArray().Length > 1)
+                    if (
+                        regexNewQuestion.IsMatch(row) &&
+                        rowNo.ToArray().Length > 2
+                    )
                     {
-                        string questionName = "";
-                        if (temp.Length > 0)
-                        {
-                            questionName = temp;
-                            tempNo.Remove (questionName);
-                        }
-                        else
-                        {
-                            tempNo.Remove(tempNo[0]);
-                            questionName = tempNo[0];
-                        }
-                        if (elementNo.ToArray().Length > 2)
-                            elementNo
-                                .Remove(elementNo[elementNo.ToArray().Length -
-                                1]);
-                        List<string> descriptionNo = new List<string>();
-                        foreach (string rowDescription in elementNo)
-                        {
-                            descriptionNo
-                                .Add(rowDescription
-                                    .Substring(new Regex(@"^\d+\.\s")
-                                        .IsMatch(rowDescription)
-                                        ? new Regex(@"^\d+\.\s")
-                                            .Match(rowDescription)
-                                            .Value
-                                            .Length
-                                        : 0));
-                        }
+                        Question question =
+                            new Question { QuestionName = rowNo[1] };
+                        rowNo.RemoveAt(1);
+                        rowNo.RemoveAt(0);
+                        string[] copyRowNo = rowNo.ToArray();
 
-                        List<string> answerNo = new List<string>();
-                        int i = 0;
-                        foreach (string rowAnswer in tempNo)
+                        int countCorrectAnswer = 0;
+                        foreach (string rowAnswer in copyRowNo)
                         {
+                            foreach (string
+                                _correctTag
+                                in
+                                QuestionOptionObj.CorrectTagNo
+                            )
                             {
-                                foreach (string
-                                    _correctTag
-                                    in
-                                    QuestionOptionObj.CorrectTagNo
-                                )
+                                if (rowAnswer.StartsWith(_correctTag))
                                 {
-                                    if (rowAnswer.StartsWith(_correctTag))
-                                    {
-                                        answerNo
-                                            .Add(QuestionOptionObj.CorrectTag +
-                                            rowAnswer.Substring(1));
-                                        i++;
-                                    }
+                                    question
+                                        .AnswerNo
+                                        .Add(QuestionOptionObj.CorrectTag +
+                                        rowAnswer.Substring(1));
+                                    countCorrectAnswer++;
+                                    rowNo.RemoveAt(0);
                                 }
-                                foreach (string
-                                    _incorrectTag
-                                    in
-                                    QuestionOptionObj.IncorrectTagNo
-                                )
+                            }
+                            foreach (string
+                                _incorrectTag
+                                in
+                                QuestionOptionObj.IncorrectTagNo
+                            )
+                            {
+                                if (rowAnswer.StartsWith(_incorrectTag))
                                 {
-                                    if (rowAnswer.StartsWith(_incorrectTag))
-                                        answerNo
-                                            .Add(QuestionOptionObj
-                                                .IncorrectTag +
-                                            rowAnswer.Substring(1));
+                                    question
+                                        .AnswerNo
+                                        .Add(QuestionOptionObj.IncorrectTag +
+                                        rowAnswer.Substring(1));
+                                    rowNo.RemoveAt(0);
                                 }
                             }
                         }
-                        if (i > 1)
+                        copyRowNo = null;
+                        if (isMoodle)
                         {
-                            string[] answers = answerNo.ToArray();
-                            for (int j = 0; j < answers.Length; j++)
-                            {
-                                answers[j] =
-                                    questionOptionObj.IncorrectTag +
-                                    (
-                                    answers[j].Substring(0, 1) ==
-                                    QuestionOptionObj.CorrectTag
-                                        ? "%" + (100 / i) + "%[moodle]"
-                                        : ""
-                                    ) +
-                                    answers[j].Substring(1);
-                            }
-                            answerNo
-                                .RemoveRange(0, answerNo.ToArray().Length - 1);
-                            answerNo.AddRange (answers);
+                            string[] answers = question.AnswerNo.ToArray();
+                            if (countCorrectAnswer > 1)
+                                for (int i = 0; i < answers.Length; i++)
+                                {
+                                    answers[i] =
+                                        questionOptionObj.IncorrectTag +
+                                        (
+                                        answers[i].Substring(0, 1) ==
+                                        QuestionOptionObj.CorrectTag
+                                            ? "%" +
+                                            (100 / countCorrectAnswer) +
+                                            "%[moodle]"
+                                            : ""
+                                        ) +
+                                        answers[i].Substring(1);
+                                }
+                            question.AnswerNo = new List<string>();
+                            question.AnswerNo.AddRange (answers);
                         }
 
-                        tempNo = new List<string>();
-                        QuestionNo
-                            .Add(new Question {
-                                QuestionName = questionName,
-                                AnswerNo = answerNo,
-                                DescriptionNo = descriptionNo
-                            });
+                        foreach (string rowDescription in rowNo)
+                        {
+                            if (rowDescription.Length > 2)
+                                question.DescriptionNo.Add(rowDescription);
+                        }
+
+                        rowNo = new List<string>();
+                        rowNo = row.Split("\t").ToList();
+                        QuestionNo.Add (question);
                     }
                     else
-                        tempNo.AddRange(elementNo);
+                        rowNo.AddRange(row.Split("\t"));
                 }
             }
         }
 
         public string textToString(Boolean isMoodleTxt = false)
         {
-            prepareRawDataToQuestion();
+            prepareRawDataToQuestion (isMoodleTxt);
             string file = "";
             foreach (Question question in QuestionNo)
             {
@@ -274,7 +265,7 @@ namespace CPPK.NET
                         file += questionOptionObj.DescriptionTag.Close + "\n";
                 }
                 if (isMoodleTxt)
-                    file += "}";
+                    file += "}\n";
                 else
                     file += "#";
             }
@@ -337,7 +328,6 @@ namespace CPPK.NET
 
         public string textToGift()
         {
-            prepareRawDataToQuestion();
             return textToString(true);
         }
     }
